@@ -1,0 +1,48 @@
+services:
+  teste-backend-db:
+    container_name: teste-backend-db
+    image: postgres:12
+    environment:
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - teste-backend-data:/var/lib/postgresql/data
+    networks:
+      - teste-backend-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  teste-backend-app:
+    container_name: teste-backend-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_HOST: teste-backend-db
+      DATABASE_PORT: 5432
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: 1234
+      DATABASE_NAME: postgres
+      PORT: 3000
+      NODE_ENV: production
+    depends_on:
+      teste-backend-db:
+        condition: service_healthy
+    networks:
+      - teste-backend-network
+    restart: unless-stopped
+
+volumes:
+  teste-backend-data:
+
+networks:
+  teste-backend-network:
+    driver: bridge
