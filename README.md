@@ -1,29 +1,44 @@
 # 🧩 Sistema de Pagamentos - API RESTful
 
-API RESTful para gerenciamento de clientes e cobranças com suporte a múltiplos métodos de pagamento: **Pix**, **Cartão de Crédito** e **Boleto Bancário**.
+API RESTful para gerenciamento de clientes e cobranças com suporte a múltiplos métodos de pagamento: **Pix**, **Cartão de Crédito** e **Boleto Bancário**. Inclui **autenticação JWT** com controle de acesso baseado em roles.
 
 ## 📋 Funcionalidades
 
-### Gerenciamento de Clientes
-- ✅ Cadastro de clientes com validação de duplicidade (e-mail e documento)
-- ✅ Listagem de todos os clientes
-- ✅ Busca de cliente por ID
-- ✅ Atualização de dados do cliente
-- ✅ Remoção de cliente
+### 🔐 Autenticação e Autorização
+- ✅ Autenticação JWT (JSON Web Tokens)
+- ✅ Controle de acesso baseado em roles (admin/user)
+- ✅ Refresh tokens para renovação automática
+- ✅ Hash de senhas com bcrypt
+- ✅ Guard global protegendo todas as rotas
+- ✅ Registro e login de usuários
 
-### Gerenciamento de Cobranças
-- ✅ Criação de cobranças vinculadas a clientes
+### 👥 Gerenciamento de Usuários
+- ✅ Cadastro de usuários com roles (admin/user)
+- ✅ Listagem de usuários (apenas admin)
+- ✅ Busca de usuário por ID
+- ✅ Remoção de usuário (apenas admin)
+
+### 👨‍💼 Gerenciamento de Clientes
+- ✅ Cadastro de clientes com validação de duplicidade (e-mail e documento)
+- ✅ Listagem de todos os clientes (requer autenticação)
+- ✅ Busca de cliente por ID (requer autenticação)
+- ✅ Atualização de dados do cliente (requer autenticação)
+- ✅ Remoção de cliente (apenas admin)
+
+### 💰 Gerenciamento de Cobranças
+- ✅ Criação de cobranças vinculadas a clientes (requer autenticação)
 - ✅ Suporte a três métodos de pagamento:
   - **Pix**: com QR Code e prazo de validade
   - **Cartão de Crédito**: com suporte a parcelamento
   - **Boleto Bancário**: com código de barras e data de vencimento
 - ✅ Controle de status da cobrança (pendente, pago, falhado, expirado, cancelado)
-- ✅ Listagem de cobranças com filtro por cliente
-- ✅ Busca de cobrança por ID
-- ✅ Atualização de status da cobrança
-- ✅ Remoção de cobrança
+- ✅ Listagem de cobranças com filtro por cliente (requer autenticação)
+- ✅ Busca de cobrança por ID (requer autenticação)
+- ✅ Atualização de status da cobrança (requer autenticação)
+- ✅ Remoção de cobrança (apenas admin)
 
-### Recursos Técnicos
+### 🛠️ Recursos Técnicos
+- ✅ Autenticação JWT com Passport
 - ✅ Validações robustas com `class-validator`
 - ✅ Tratamento global de erros
 - ✅ Idempotência nas requisições POST
@@ -37,6 +52,9 @@ API RESTful para gerenciamento de clientes e cobranças com suporte a múltiplos
 - **TypeScript** - Linguagem de programação
 - **TypeORM** - ORM para banco de dados
 - **PostgreSQL** - Banco de dados relacional
+- **JWT** - Autenticação com tokens
+- **Passport** - Estratégias de autenticação
+- **bcrypt** - Hash de senhas
 - **Swagger** - Documentação da API
 - **Docker** - Containerização
 - **class-validator** - Validação de dados
@@ -61,12 +79,14 @@ cd teste-backend
 2. **Configure as variáveis de ambiente**
 ```bash
 # Crie um arquivo .env na raiz do projeto
-DATABASE_HOST=go_db
+DATABASE_HOST=teste-backend-db
 DATABASE_PORT=5432
 DATABASE_USER=postgres
 DATABASE_PASSWORD=1234
 DATABASE_NAME=postgres
 PORT=3000
+JWT_SECRET=your-secret-key-change-in-production-must-be-at-least-32-chars
+JWT_REFRESH_SECRET=your-refresh-secret-key-must-also-be-at-least-32-chars
 ```
 
 3. **Inicie os containers**
@@ -107,6 +127,8 @@ DATABASE_USER=postgres
 DATABASE_PASSWORD=1234
 DATABASE_NAME=postgres
 PORT=3000
+JWT_SECRET=your-secret-key-change-in-production-must-be-at-least-32-chars
+JWT_REFRESH_SECRET=your-refresh-secret-key-must-also-be-at-least-32-chars
 ```
 
 5. **Inicie o servidor de desenvolvimento**
@@ -125,36 +147,138 @@ A documentação completa da API está disponível através do Swagger UI em:
 http://localhost:3000/api/docs
 ```
 
+### 🔐 Autenticação JWT
+
+A API utiliza autenticação JWT (JSON Web Tokens) para proteger os endpoints. Existem dois tipos de usuários:
+
+- **`admin`**: Acesso total ao sistema (pode deletar recursos)
+- **`user`**: Acesso limitado (pode criar e editar, mas não deletar)
+
+#### Fluxo de Autenticação
+
+```
+1. Registrar usuário → POST /users
+2. Fazer login → POST /auth/login (recebe accessToken e refreshToken)
+3. Usar accessToken nas requisições → Header: Authorization: Bearer <token>
+4. Renovar token quando expirar → POST /auth/refresh
+```
+
+#### Endpoints de Autenticação
+
+| Método | Endpoint | Descrição | Acesso |
+|--------|----------|-----------|--------|
+| POST | `/users` | Registrar novo usuário | Público |
+| POST | `/auth/login` | Fazer login | Público |
+| POST | `/auth/refresh` | Renovar access token | Público |
+| GET | `/users` | Listar usuários | Apenas admin |
+| GET | `/users/:id` | Buscar usuário | Autenticado |
+| DELETE | `/users/:id` | Remover usuário | Apenas admin |
+
+#### Duração dos Tokens
+
+- **Access Token**: 15 minutos
+- **Refresh Token**: 7 dias
+
 ### Endpoints Principais
+
+#### Auth & Users
+
+| Método | Endpoint | Descrição | Acesso |
+|--------|----------|-----------|--------|
+| POST | `/users` | Registrar usuário | 🔓 Público |
+| POST | `/auth/login` | Login | 🔓 Público |
+| POST | `/auth/refresh` | Renovar token | 🔓 Público |
+| GET | `/users` | Listar usuários | 🔒 Admin |
+| GET | `/users/:id` | Buscar usuário | 🔒 Autenticado |
+| DELETE | `/users/:id` | Remover usuário | 🔒 Admin |
 
 #### Customers (Clientes)
 
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| POST | `/customers` | Criar novo cliente |
-| GET | `/customers` | Listar todos os clientes |
-| GET | `/customers/:id` | Buscar cliente por ID |
-| PATCH | `/customers/:id` | Atualizar cliente |
-| DELETE | `/customers/:id` | Remover cliente |
+| Método | Endpoint | Descrição | Acesso |
+|--------|----------|-----------|--------|
+| POST | `/customers` | Criar novo cliente | 🔒 Autenticado |
+| GET | `/customers` | Listar todos os clientes | 🔒 Autenticado |
+| GET | `/customers/:id` | Buscar cliente por ID | 🔒 Autenticado |
+| PATCH | `/customers/:id` | Atualizar cliente | 🔒 Autenticado |
+| DELETE | `/customers/:id` | Remover cliente | 🔒 Admin |
 
 #### Charges (Cobranças)
 
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| POST | `/charges` | Criar nova cobrança |
-| GET | `/charges` | Listar todas as cobranças |
-| GET | `/charges?customerId=:id` | Listar cobranças de um cliente |
-| GET | `/charges/:id` | Buscar cobrança por ID |
-| PATCH | `/charges/:id` | Atualizar status da cobrança |
-| DELETE | `/charges/:id` | Remover cobrança |
+| Método | Endpoint | Descrição | Acesso |
+|--------|----------|-----------|--------|
+| POST | `/charges` | Criar nova cobrança | 🔒 Autenticado |
+| GET | `/charges` | Listar todas as cobranças | 🔒 Autenticado |
+| GET | `/charges?customerId=:id` | Listar cobranças de um cliente | 🔒 Autenticado |
+| GET | `/charges/:id` | Buscar cobrança por ID | 🔒 Autenticado |
+| PATCH | `/charges/:id` | Atualizar status da cobrança | 🔒 Autenticado |
+| DELETE | `/charges/:id` | Remover cobrança | 🔒 Admin |
 
 ## 🧪 Exemplos de Uso
 
-### 1. Criar um Cliente
+### Exemplo Completo com Autenticação
+
+#### 1. Registrar um usuário
+
+```bash
+curl -X POST http://localhost:3000/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Admin User",
+    "email": "admin@example.com",
+    "password": "senha123",
+    "role": "admin"
+  }'
+```
+
+**Resposta:**
+```json
+{
+  "id": "uuid",
+  "name": "Admin User",
+  "email": "admin@example.com",
+  "role": "admin",
+  "isActive": true,
+  "createdAt": "2025-10-21T...",
+  "updatedAt": "2025-10-21T..."
+}
+```
+
+#### 2. Fazer Login
+
+```bash
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "senha123"
+  }'
+```
+
+**Resposta:**
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresIn": 900,
+  "user": {
+    "id": "uuid",
+    "name": "Admin User",
+    "email": "admin@example.com",
+    "role": "admin"
+  }
+}
+```
+
+**💡 Guarde o `accessToken` para usar nas próximas requisições!**
+
+#### 3. Criar um Cliente (com autenticação)
+
+**Importante**: Substitua `YOUR_TOKEN` pelo `accessToken` recebido no login
 
 ```bash
 curl -X POST http://localhost:3000/customers \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "idempotency-key: 550e8400-e29b-41d4-a716-446655440000" \
   -d '{
     "name": "João da Silva",
@@ -163,6 +287,8 @@ curl -X POST http://localhost:3000/customers \
     "phone": "11987654321"
   }'
 ```
+
+**⚠️ Sem o header `Authorization`, você receberá erro 401 Unauthorized**
 
 **Resposta:**
 ```json
@@ -177,11 +303,12 @@ curl -X POST http://localhost:3000/customers \
 }
 ```
 
-### 2. Criar Cobrança com Pix
+#### 4. Criar Cobrança com Pix (com autenticação)
 
 ```bash
 curl -X POST http://localhost:3000/charges \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "idempotency-key: 660e8400-e29b-41d4-a716-446655440000" \
   -d '{
     "customerId": "123e4567-e89b-12d3-a456-426614174000",
@@ -212,11 +339,24 @@ curl -X POST http://localhost:3000/charges \
 }
 ```
 
-### 3. Criar Cobrança com Cartão de Crédito
+#### 5. Renovar Token (quando expirar)
+
+```bash
+curl -X POST http://localhost:3000/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "YOUR_REFRESH_TOKEN"
+  }'
+```
+
+### Mais Exemplos
+
+#### Criar Cobrança com Cartão de Crédito
 
 ```bash
 curl -X POST http://localhost:3000/charges \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "idempotency-key: 770e8400-e29b-41d4-a716-446655440000" \
   -d '{
     "customerId": "123e4567-e89b-12d3-a456-426614174000",
@@ -233,11 +373,12 @@ curl -X POST http://localhost:3000/charges \
   }'
 ```
 
-### 4. Criar Cobrança com Boleto
+#### Criar Cobrança com Boleto
 
 ```bash
 curl -X POST http://localhost:3000/charges \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "idempotency-key: 880e8400-e29b-41d4-a716-446655440000" \
   -d '{
     "customerId": "123e4567-e89b-12d3-a456-426614174000",
@@ -250,14 +391,70 @@ curl -X POST http://localhost:3000/charges \
   }'
 ```
 
-### 5. Atualizar Status da Cobrança
+#### Atualizar Status da Cobrança
 
 ```bash
 curl -X PATCH http://localhost:3000/charges/789e4567-e89b-12d3-a456-426614174000 \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
     "status": "paid"
   }'
+```
+
+### 🔓 Testando no Swagger
+
+1. Acesse http://localhost:3000/api/docs
+2. Primeiro, registre um usuário em `/users` ou faça login em `/auth/login`
+3. Copie o `accessToken` retornado
+4. Clique no botão **"Authorize"** (cadeado no topo da página)
+5. Cole o token no campo e clique em "Authorize"
+6. Agora você pode testar todos os endpoints protegidos diretamente no Swagger!
+
+## 🔐 Segurança e Autenticação
+
+### JWT (JSON Web Tokens)
+
+A API utiliza JWT para autenticação stateless. Os tokens contêm:
+
+```json
+{
+  "sub": "user-id",
+  "email": "user@example.com",
+  "role": "admin",
+  "iat": 1729508400,
+  "exp": 1729509300
+}
+```
+
+### Roles e Permissões
+
+| Role | Permissões |
+|------|------------|
+| **admin** | Acesso total: pode criar, ler, atualizar e deletar todos os recursos |
+| **user** | Acesso limitado: pode criar e editar, mas não deletar recursos |
+
+### Hash de Senhas
+
+- Senhas são hasheadas com **bcrypt** (salt rounds: 10)
+- Senhas nunca são retornadas nas respostas da API
+- Impossível recuperar senha original (apenas reset)
+
+### Headers de Autenticação
+
+Todas as rotas protegidas requerem:
+
+```http
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### Variáveis de Ambiente de Segurança
+
+**⚠️ IMPORTANTE**: Em produção, use secrets fortes!
+
+```env
+JWT_SECRET=use-um-secret-forte-com-pelo-menos-32-caracteres-aqui
+JWT_REFRESH_SECRET=outro-secret-diferente-tambem-forte
 ```
 
 ## 🔒 Idempotência

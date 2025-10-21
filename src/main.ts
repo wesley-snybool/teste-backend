@@ -29,11 +29,23 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Sistema de Pagamentos API')
     .setDescription(
-      'API RESTful para gerenciamento de clientes e cobranças com suporte a Pix, Cartão de Crédito e Boleto Bancário',
+      'API RESTful para gerenciamento de clientes e cobranças com suporte a Pix, Cartão de Crédito e Boleto Bancário. Inclui autenticação JWT com controle de acesso baseado em roles (admin/user).',
     )
-    .setVersion('1.0')
-    .addTag('Customers', 'Endpoints para gerenciamento de clientes')
-    .addTag('Charges', 'Endpoints para gerenciamento de cobranças')
+    .setVersion('2.0')
+    .addTag('Health', 'Health check da aplicação')
+    .addTag('Auth', 'Autenticação e autorização')
+    .addTag('Users', 'Gerenciamento de usuários')
+    .addTag('Customers', 'Gerenciamento de clientes')
+    .addTag('Charges', 'Gerenciamento de cobranças')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Insira o token JWT obtido no login',
+        in: 'header',
+      },
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
